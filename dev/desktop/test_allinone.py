@@ -86,6 +86,20 @@ class AllInOneTests(unittest.TestCase):
         allinone.run(self.args, dispatch=self.dispatch)
         self.assertEqual(before, self.calls)
 
+    def test_selected_install_preserves_sound_off_through_resume(self):
+        self.args['options']['sound'] = False
+        state = allinone.run(self.args, dispatch=self.dispatch)
+        self.assertEqual(state['phase'], 'WAIT_RELOAD')
+        install = next(args for action, args in self.calls if action == 'direct_install_all')
+        self.assertFalse(install['options']['sound'])
+        self.assertTrue(install['options']['fl23'])
+        self.assertTrue(install['options']['vertical_persistent'])
+        self.booted = True
+        state = allinone.run(self.args, dispatch=self.dispatch)
+        self.assertEqual(state['phase'], 'COMPLETE')
+        self.assertFalse(any(action.startswith('sound_') for action, _ in self.calls))
+        self.assertNotIn('plugin_install', [action for action, _ in self.calls])
+
     def test_native_timeout_does_not_repeat_install_on_next_click(self):
         def fail(action, args, folder):
             result = self.dispatch(action, args, folder)

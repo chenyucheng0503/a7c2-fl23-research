@@ -3,6 +3,7 @@ import struct
 import sys
 import time
 import core
+import read_only
 import usb.core
 import usb.util
 import usb.backend.libusb1
@@ -62,6 +63,7 @@ class SonySenserDevice(PmcaSenserDevice):
         return b''.join(chunks)
 
     def sendSenserPacket(self,pFunc,data,oData=None):
+        read_only.check(pFunc,data)
         if self._failed:raise SenserProtocolError('Senser channel is unusable after a failed exchange; no request sent')
         try:return self._exchange(pFunc,data,oData)
         except BaseException:
@@ -239,12 +241,24 @@ def _query_initial_ready(device):
     return info
 
 def identity():
-    dev=get_device(0x0e8a)
+    host=None;dev=None
     try:
+        if sys.platform.startswith('linux'):
+            from linux_host import CameraHost
+            host=CameraHost();host.__enter__()
+        dev=get_device(0x0e8a)
+        if host is not None:host.claim(dev,interface_class=(8,6,0x50))
         info=_query_initial_ready(dev)
         if info.modelName!=core.MODEL:raise RuntimeError('只支援 '+core.MODEL)
         return {'model':info.modelName,'serial_sha256':core.sha(info.serial.encode())}
-    finally:usb.util.dispose_resources(dev)
+    finally:
+        if dev is not None:usb.util.dispose_resources(dev)
+        if host is not None:host.close(lambda:_linux_normal_device(host))
+
+def _linux_normal_device(host):
+    backend=usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
+    return next((d for d in usb.core.find(find_all=True,idVendor=0x054c,idProduct=0x0e8a,backend=backend)
+                 if (d.bus,tuple(d.port_numbers or ()))==host.address),None)
 
 def service_identity(snapshot,model):
     """Keep the original normal-query binding without that application query."""
@@ -293,7 +307,7 @@ def _wait_for(pid,seconds,seen,prepare=None):
             time.sleep(.5)
 
 
-def _rescue_service():
+def _rescue_service(linux_host=None):
     """Return a body from 0336 after a read-only session lost its channel.
 
     The broken channel cannot carry auth.stop, so a fresh handle repeats the
@@ -303,6 +317,7 @@ def _rescue_service():
     try:dev=get_device(0x0336)
     except Exception:return False
     try:
+        if linux_host is not None:linux_host.claim(dev)
         if sys.platform=='darwin':
             from macos_host import claim_camera_interface
             claim_camera_interface(dev)
@@ -323,16 +338,32 @@ class Session:
         self.expected=expected;self.healthy=True;self.media_released=media_released
         # Any command that can change camera state disables automatic rescue.
         self.mutating=False
+        self.linux_host=None
     def __enter__(self):
+        if sys.platform.startswith('linux'):
+            from linux_host import CameraHost
+            self.linux_host=CameraHost();self.linux_host.__enter__()
+        try:return self._enter()
+        except BaseException:
+            self._close_linux()
+            raise
+    def _close_linux(self):
+        host=getattr(self,'linux_host',None)
+        if host is None:return
+        self.linux_host=None
+        host.close(lambda:_linux_normal_device(host))
+    def _enter(self):
         global _service_exit
         for attempt in range(1,SERVICE_ATTEMPTS+1):
             _cool_down()
+            if self.linux_host is not None and attempt>1:self.linux_host.prepare()
             if sys.platform=='darwin' and (attempt>1 or not self.media_released):
                 # A bounce back to MSC lets macOS remount the camera storage.
                 from macos_host import unmount_camera
                 unmount_camera()
             dev=get_device(0x0e8a)
             try:
+                if self.linux_host is not None:self.linux_host.claim(dev,interface_class=(8,6,0x50))
                 if sys.platform=='darwin':
                     # MDHan's order: verify the MSC interface and claim it first.
                     from macos_host import claim_camera_interface
@@ -342,6 +373,7 @@ class Session:
                 model=usb.util.get_string(dev,dev.iProduct) if dev.iProduct else None
                 if model!=core.MODEL:raise RuntimeError('只支援 '+core.MODEL+'；USB 型號不符')
                 auth=SonySenserAuthDevice(GenericUsbDriver(Bounded(dev,20)))
+                if self.linux_host is not None:self.linux_host.service_started=True
                 auth.start();auth.authenticate()
                 # An authentication error is not retried or followed by stop.
             finally:usb.util.dispose_resources(dev)
@@ -360,6 +392,7 @@ class Session:
             _service_exit=time.monotonic()
             print('相机已回到普通 USB，冷却后自动重试（第 %d/%d 次）。'%(attempt+1,SERVICE_ATTEMPTS),flush=True)
         time.sleep(2)
+        if self.linux_host is not None:self.linux_host.claim(self.dev)
         if sys.platform=='darwin':
             from macos_host import claim_camera_interface
             claim_camera_interface(self.dev)
@@ -381,29 +414,38 @@ class Session:
             raise
         return self
     def __exit__(self,*args):
+        try:return self._exit(*args)
+        finally:self._close_linux()
+    def _exit(self,*args):
         global _service_exit
         stopped=False
         try:
             if self.healthy:self.auth.stop();stopped=True
         finally:usb.util.dispose_resources(self.dev)
         if not self.healthy and not self.mutating:
-            stopped=_rescue_service()
+            host=getattr(self,'linux_host',None)
+            stopped=_rescue_service(host) if host is not None else _rescue_service()
         if stopped and sys.platform=='darwin':
             from macos_host import wait_normal_return
             # Only enumerate here. Reading configuration opens a new handle
             # before the next session can release remounted camera storage.
             wait_normal_return(lambda:usb.core.find(idVendor=0x054c,idProduct=0x0e8a,
                 backend=usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)))
-        if stopped:_service_exit=time.monotonic()
+        if stopped:
+            _service_exit=time.monotonic()
+            host=getattr(self,'linux_host',None)
+            if host is not None:host.service_started=True
     def call(self,method,*args):
         if not self.healthy:raise RuntimeError('會話結果未知，停止後續命令')
-        if getattr(method,'__name__','') in ('writeBackup','saveBackup'):self.mutating=True
+        if getattr(method,'__name__','') in ('writeBackup','saveBackup'):
+            read_only.require_writes();self.mutating=True
         self.backend.reset()
         try:return method(*args)
+        except read_only.ReadOnlyViolation:raise
         except BaseException:self.healthy=False;raise
     def jiritsu(self,cmd,data=b'',missing=False):
         if cmd not in [15,16,17,18]:raise ValueError('不允許此 Jiritsu 命令')
-        if cmd in (16,18):self.mutating=True
+        if cmd in (16,18):read_only.require_writes();self.mutating=True
         response,out=self.call(self.channel.sendSenserPacket,0x40,struct.pack('<HH',0x1001,cmd)+data)
         if response or len(out)<4:raise RuntimeError('Jiritsu 回應格式錯誤')
         status=struct.unpack_from('<I',out)[0]
@@ -427,11 +469,11 @@ class Session:
         return self.call(self.camera._sendAdjustControlPacket,0x603,0x40,struct.pack('<II',key,1))
     def cp_write(self,key,data):
         if key not in core.CP_KEYS or len(data)!={core.CP_KEYS[0]:8192,core.CP_KEYS[1]:28672}[key]:raise ValueError('CP 寫入目標或長度不符')
-        self.mutating=True
+        read_only.require_writes();self.mutating=True
         return self.call(self.camera._sendAdjustControlPacket,0x603,0x41,struct.pack('<II',key,1)+data)
     def ap_write(self,key,data):
         if key not in core.AP_KEYS or len(data)!=1:raise ValueError('AP 綁定目標或長度不符')
-        self.mutating=True
+        read_only.require_writes();self.mutating=True
         return self.call(self.camera.writeBackup,key,data)
 
 
@@ -442,11 +484,22 @@ class RecoverySession(Session):
     the previous native result and proves the live model before new writes.
     """
     def __enter__(self):
+        if not self.expected or self.expected.get('model') != core.MODEL or not self.expected.get('serial_sha256'):
+            raise ValueError('Existing service recovery requires a recorded A7C II body identity')
+        if sys.platform.startswith('linux'):
+            from linux_host import CameraHost
+            self.linux_host=CameraHost(service=True);self.linux_host.__enter__()
+        try:return self._recover_enter()
+        except BaseException:
+            self._close_linux()
+            raise
+    def _recover_enter(self):
         # Reattaching to an unknown earlier outcome never sends a stop itself.
         self.mutating = True
         if not self.expected or self.expected.get('model') != core.MODEL or not self.expected.get('serial_sha256'):
             raise ValueError('Existing service recovery requires a recorded A7C II body identity')
         self.dev = get_device(0x0336)
+        if self.linux_host is not None:self.linux_host.claim(self.dev)
         if sys.platform=='darwin':
             from macos_host import claim_camera_interface
             claim_camera_interface(self.dev)

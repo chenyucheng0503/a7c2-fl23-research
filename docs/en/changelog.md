@@ -2,6 +2,14 @@
 
 [Home](../../README.md) · [简体中文](../zh-CN/changelog.md)
 
+## Linux adaptation branch (based on 3.0.3) — 2026-10-27
+
+- Add native Linux USB capture, physical-port binding, host serialization and storage-driver return after a normal exit. Camera patches, body binding and unknown-write handling remain unchanged.
+- Add a read-only-by-default headless entry and separate preparation plans using the existing combined install, recovery, setting preservation and compilation paths. Host preparation is distinct from write acceptance.
+- Cover resumed installs with six looks/FL23/portrait enabled and sound disabled, preserving the saved sound selection.
+- An earlier independent probe completed two-stage authentication and 18 full-program read rounds over 122 seconds on one Unraid 6.12.4 / N100 / A7C II. That is not write/cold-boot acceptance of this branch; adaptation-specific physical results must be recorded separately.
+- This branch passed 132 offline tests on that Unraid host (6 private-fixture tests skipped), then completed real configuration reads, combined look/FL23/portrait planning, host AArch64 compilation and inverse-byte verification in read-only mode. No camera worker was uploaded; preparation is not write acceptance.
+
 ## 3.0.3 — USB recovery and sound workflow fixes — 2026-10-23
 
 - All desktop sound controls now work from the current selection/body: volume up/down/reset and conversion remain host-only; On/Off use fresh switch transactions; Restore original sound rebuilds only the supported AP sound-loader inverse from current bytes, preserves the switch and looks, and removes the boot call before its reader prerequisites. It no longer searches completed installation records or sends the user to full factory recovery. Sound verification reads currently loaded sound code/resources without a saved installation job. Optional listening/recovery statements can be recorded without an audition job. Stale staging is handled by the same current-request cleanup used by Save/Audition; no old pending task is an eligibility gate.

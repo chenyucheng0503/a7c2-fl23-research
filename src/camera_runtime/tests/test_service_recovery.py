@@ -3,12 +3,17 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import transport
 
 
 class ServiceRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        # Protocol tests own a fake device, including the new Linux host lease.
+        self.host = patch('linux_host.CameraHost', return_value=MagicMock())
+        self.host.start(); self.addCleanup(self.host.stop)
+
     def test_existing_session_is_read_before_any_authentication(self):
         expected = {'model': 'ILCE-7CM2', 'serial_sha256': 'body'}
         auth = Mock(driver=Mock())

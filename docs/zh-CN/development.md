@@ -98,6 +98,14 @@
 
 **外观转换**：`compilelook.py` 解析 DCP 的 LookTable／色调曲线，或 ST／sRGB 的 CUBE，再用 `calibration/a7c2-2.01.virtual.npz` 拟合成机内色表，不需要 Lightroom。支持哪些输入见 [LUT 格式](lut-formats.md)。
 
+## Linux 主机与无界面入口
+
+`linux.py` 使用同一 `desktopapp.worker` 分发器；`setup_all`、直接操作和恢复仍沿用原事务及续接状态。`camera_runtime/linux_host.py` 通过 sysfs 确认相机块设备与物理端口，处理 fuseblk 挂载、普通卸载、接口接管和返回 MSC，并用宿主锁串行化不同进程。`read_only.py` 在服务数据包发送前拦截非只读命令，默认限制 Linux；显式写入还需原有供电和业务检查。
+
+`desktopapp.preparation` 在只读屏障内复用 `DirectJob.capture/settings`、`bundle.plan` 和原生编译器，单独保存 `a7c2-readonly-preparation/1`，不生成可续写的安装事务、不执行 `native`、不清理相机临时文件。竖屏准备使用原有资源规划与主机编译。准备成功只表示 host plan/compile 通过。
+
+离线测试同时禁止真实 USB 枚举和真实 Linux 卷卸载。新增主机/准备测试使用假 sysfs、假挂载、假相机；CP 写边界模拟显式打开测试写入权限。
+
 ## 构建与测试
 
 使用原生 64 位 Python 3.11：

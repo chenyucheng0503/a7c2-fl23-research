@@ -350,6 +350,23 @@
 
 离线测试和字节读回不能证明相机在所有情况下都能正常工作。目前只在一台相机上验证过。各版本的测试记录见[更新日志](docs/zh-CN/changelog.md)。
 
+## Linux（实验性，无界面）
+
+Linux 使用源码中的 `linux.py`，需要 64 位 Python 3.11 和 `linux-requirements.txt`。目前针对原生 Linux 宿主；不提供 Linux GUI 安装包，容器未验证。相机操作需要 root，程序只临时卸载这台相机的卷、接管其 USB 接口，并在正常退出后交还存储驱动，不解绑整个 USB 控制器。
+
+`doctor` 不访问相机；`connect`、`usb-test` 和 `prepare` 默认只读。准备可以读取当前状态、使用原有规划器生成计划并在电脑上编译相机 worker，但不会上传或执行它，不能代替原生预检和写入后的冷启动验收。
+
+```text
+python linux.py doctor
+sudo /path/to/venv/bin/python linux.py connect
+sudo /path/to/venv/bin/python linux.py usb-test
+sudo /path/to/venv/bin/python linux.py prepare --arguments prepare.json
+```
+
+准备 JSON 需包含 `workspace`（独立空目录）、`firmware: "2.01"`、`mode`（`install_all`、`fl23_enable`、`fl23_disable` 或 `factory_reset`）。组合安装的 `options` 与桌面版一致，例如 `{"preset_pack":"default-six-v1","fl23":true,"sound":false,"vertical":true,"plugin":false}`。内置六款资源必须来自正式发行包并位于 `desktop-assets/presets/default-six-v1/slot1.a7look` 至 `slot6.a7look`，不能临时重新拟合来替代。
+
+实际安装和恢复复用已有 worker 动作，例如 `run --action setup_all --arguments install.json --allow-camera-writes`。只有确认供电充足后才能在请求中设置 `power_confirmed: true`；Linux 默认拒绝写入、临时 worker 上传和删除。环境变量 `A7C2_CAMERA_READ_ONLY=1` 优先锁定只读。准备目录不能当作安装目录；安装续接必须保留同一个 `workspace` 和原事务记录。结果为 `WAIT_RELOAD` 或 `WAIT_RESOURCE_RELOAD` 时按提示断电重开，结果不明时停止，不重复执行写入。
+
 ## 命令行与开发
 
 图形界面已经覆盖日常使用。原有的命令行工具仍保留，供高级用户和开发使用：

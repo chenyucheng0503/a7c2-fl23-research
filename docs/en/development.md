@@ -98,6 +98,14 @@ If `0336` never appears and the camera returns to `0E8A`, the session cools down
 
 **Look conversion:** `compilelook.py` parses DCP LookTable/tone curves, or ST/sRGB CUBEs, and fits them to the native table with `calibration/a7c2-2.01.virtual.npz`. No Lightroom is needed. See [LUT formats](lut-formats.md) for supported inputs.
 
+## Linux host and headless entry
+
+`linux.py` uses the same `desktopapp.worker` dispatcher. `setup_all`, direct operations and recovery keep their original transactions and resume states. `camera_runtime/linux_host.py` identifies camera block devices and the physical port through sysfs, handles fuseblk mounts, normal unmounting, interface capture and MSC return, and serializes processes with a host lock. `read_only.py` rejects non-read-only service packets before sending them, by default on Linux. Explicit writes still require the existing power and business checks.
+
+`desktopapp.preparation` reuses `DirectJob.capture/settings`, `bundle.plan` and native compilation behind the read-only barrier. It stores a separate `a7c2-readonly-preparation/1` record, never a resumable installation transaction, and never invokes `native` or removes camera temporary files. Portrait preparation uses the existing resource planner and host compiler. Success establishes host planning/compilation only.
+
+Offline tests block both physical USB enumeration and real Linux volume preparation. Host/preparation tests use fake sysfs, mounts and cameras; CP write-boundary simulations explicitly opt into simulated writes.
+
 ## Build and test
 
 Use native 64-bit Python 3.11.

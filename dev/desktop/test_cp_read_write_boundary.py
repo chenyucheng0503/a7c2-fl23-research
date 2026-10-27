@@ -10,6 +10,13 @@ from looktool import devicesession
 transport,_=devicesession.modules()
 
 
+@pytest.fixture(autouse=True)
+def simulated_writes_only(monkeypatch):
+    # CpBoundary below is the only device; the root fixture blocks real USB.
+    monkeypatch.setenv('A7C2_ALLOW_CAMERA_WRITES', '1')
+    monkeypatch.setenv('A7C2_CAMERA_READ_ONLY', '0')
+
+
 class CpBoundary:
     idVendor=0x054c
     idProduct=0x0336

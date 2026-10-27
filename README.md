@@ -352,6 +352,23 @@ A diagnostic bundle contains device information and local paths, so review it be
 
 Offline tests and byte readback can't prove the camera works correctly in every situation, and everything so far has been verified on a single camera. Test records for each version are in the [changelog](docs/en/changelog.md).
 
+## Linux (experimental, headless)
+
+Linux uses the source entry `linux.py`, 64-bit Python 3.11 and `linux-requirements.txt`. This targets a native Linux host; no Linux GUI package is provided and containers are unverified. Camera operations require root. Only this camera's volumes and USB interface are temporarily released, and the storage driver is returned after a normal exit. The whole USB controller is never detached.
+
+`doctor` never accesses a camera. `connect`, `usb-test` and `prepare` are read-only by default. Preparation reads current state, uses the existing planners and compiles camera workers on the host, but never uploads or executes them. It does not replace native preflight or post-write cold-boot acceptance.
+
+```text
+python linux.py doctor
+sudo /path/to/venv/bin/python linux.py connect
+sudo /path/to/venv/bin/python linux.py usb-test
+sudo /path/to/venv/bin/python linux.py prepare --arguments prepare.json
+```
+
+Preparation JSON contains `workspace` (a separate empty directory), `firmware: "2.01"`, and `mode` (`install_all`, `fl23_enable`, `fl23_disable`, or `factory_reset`). Combined `options` match the desktop, for example `{"preset_pack":"default-six-v1","fl23":true,"sound":false,"vertical":true,"plugin":false}`. The six presets must come from the release and occupy `desktop-assets/presets/default-six-v1/slot1.a7look` through `slot6.a7look`; do not refit replacements during installation.
+
+Installation and recovery use the existing worker actions, for example `run --action setup_all --arguments install.json --allow-camera-writes`. Set `power_confirmed: true` in the request only after confirming adequate power. Linux otherwise rejects writes, temporary-worker uploads and deletion; `A7C2_CAMERA_READ_ONLY=1` takes precedence. A preparation folder is not an installation transaction. Resume the same installation `workspace` with its original records. Follow the cold-reload instructions for `WAIT_RELOAD` or `WAIT_RESOURCE_RELOAD`; stop on unknown outcomes instead of repeating writes.
+
 ## Command line and development
 
 The interface covers everyday use. The original command-line tools remain for advanced users and development:

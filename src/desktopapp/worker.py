@@ -40,6 +40,9 @@ def register_backup(path):
 
 def run(action, args, job):
     setup_runtime()
+    if action == 'linux_prepare':
+        from .preparation import prepare
+        return prepare(args, job)
     from .jobs import POWER_ACTIONS
     if action in POWER_ACTIONS:
         from looktool.power import require_power
