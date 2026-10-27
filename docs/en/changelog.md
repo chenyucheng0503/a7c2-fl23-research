@@ -2,13 +2,13 @@
 
 [Home](../../README.md) · [简体中文](../zh-CN/changelog.md)
 
-## Linux adaptation branch (based on 3.0.3) — 2026-10-27
+## Linux adaptation branch (based on 3.0.3) — 2026-10-27–28
 
 - Add native Linux USB capture, physical-port binding, host serialization and storage-driver return after a normal exit. Camera patches, body binding and unknown-write handling remain unchanged.
-- Add a read-only-by-default headless entry and separate preparation plans using the existing combined install, recovery, setting preservation and compilation paths. Host preparation is distinct from write acceptance.
-- Cover resumed installs with six looks/FL23/portrait enabled and sound disabled, preserving the saved sound selection.
-- An earlier independent probe completed two-stage authentication and 18 full-program read rounds over 122 seconds on one Unraid 6.12.4 / N100 / A7C II. That is not write/cold-boot acceptance of this branch; adaptation-specific physical results must be recorded separately.
-- This branch passed 132 offline tests on that Unraid host (6 private-fixture tests skipped), then completed real configuration reads, combined look/FL23/portrait planning, host AArch64 compilation and inverse-byte verification in read-only mode. No camera worker was uploaded; preparation is not write acceptance.
+- Add a read-only-by-default headless entry and separate preparation plans using the existing combined install, recovery, setting preservation and compilation paths.
+- On one Unraid 6.12.4 / N100 / A7C II, completed real installation and full readback of the six bundled looks, FL2/FL3 and portrait display. Name-resource reload and final program loading each required a complete power removal; the original transaction resumed to COMPLETE. Portrait saved/running states were ON, while sound remained disabled and read back as off.
+- Read-only checks confirmed preview/photo slot masks of 63, six distinct tables, matching name resources and ST saved/runtime bases. The owner reported visible differences between ordinary ST and custom slots 1/2, with normal capture and playback; this is not exhaustive scene acceptance.
+- 132 offline tests passed on the NAS, with 6 private-fixture tests skipped. Recovery was simulated offline, not physically performed on this body. One installation does not establish broad Linux/body stability.
 
 ## 3.0.3 — USB recovery and sound workflow fixes — 2026-10-23
 
