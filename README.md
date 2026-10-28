@@ -257,7 +257,9 @@ If the app says that names are written but programs are not yet, the camera is s
 
 | Custom slot | 1 | 2 | 3 | 4 | 5 | 6 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Look | Classic Neg. (NC) | Classic Chrome (CC) | Nostalgic Neg. (NN) | Astia | GR Positive Film | GR Negative Film |
+| Look | Astia | GR Positive Film | GR Negative Film | Nostalgic Neg. (NN) | Classic Chrome (CC) | Classic Neg. (NC) |
+
+New jobs on this branch use the order above. The release files `slot1.a7look` through `slot6.a7look` retain their original numbering and are mapped to target slots in code. Existing jobs keep their saved order when resumed. An already-installed camera needs a new Custom Creative Look slot-change job; updating the code alone does not reorder the camera.
 
 To install your own looks instead, untick the built-in six, expand **改用自己的 A7Look 文件 (Use your own A7Look files)** and pick an `.a7look` file for each slot. Slots left empty stay as they are.
 

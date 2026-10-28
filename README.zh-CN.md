@@ -255,7 +255,9 @@
 
 | 自订槽位 | 1 | 2 | 3 | 4 | 5 | 6 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 外观 | Classic Neg.（NC） | Classic Chrome（CC） | Nostalgic Neg.（NN） | Astia | GR 正片 | GR 负片 |
+| 外观 | Astia | GR 正片 | GR 负片 | Nostalgic Neg.（NN） | Classic Chrome（CC） | Classic Neg.（NC） |
+
+此分支的新任务使用上述顺序。发行包里的 `slot1.a7look` 至 `slot6.a7look` 保留原始编号，由代码映射到目标槽位。已有安装记录及其续接顺序不变；已安装相机需要新建“自定义创意外观”槽位更改任务，代码更新本身不会调整相机。
 
 想装自己的外观：先取消勾选内置六款，再展开 **改用自己的 A7Look 文件**，为各槽位选择 `.a7look` 文件；留空的槽位保持原样。
 

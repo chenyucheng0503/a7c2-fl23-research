@@ -14,7 +14,7 @@ AVAILABLE = (presets.ROOT / 'desktop-assets/presets' / presets.PACK / 'slot6.a7l
 class PresetTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(); self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         env = patch.dict(os.environ, {'A7C2_DESKTOP_DATA': str(self.root / 'app')})
         env.start(); self.addCleanup(env.stop)
 
@@ -23,6 +23,16 @@ class PresetTests(unittest.TestCase):
         result = presets.resolve(options)
         self.assertEqual(result, options)
         self.assertIsNot(result, options)
+
+    def test_requested_order_maps_original_assets_to_target_slots(self):
+        rows = presets.catalog()
+        self.assertEqual([r['slot'] for r in rows], [1, 2, 3, 4, 5, 6])
+        self.assertEqual([Path(r['path']).name for r in rows],
+                         ['slot4.a7look', 'slot5.a7look', 'slot6.a7look',
+                          'slot3.a7look', 'slot2.a7look', 'slot1.a7look'])
+        self.assertEqual([r['name'] for r in rows],
+                         ['Astia', 'GR Positive Film', 'GR Negative Film',
+                          'Nostalgic Neg.', 'Classic Chrome', 'Classic Neg.'])
 
     def test_unknown_pack_and_ambiguous_inputs_are_rejected(self):
         for options in (dict(preset_pack='unknown'), dict(preset_pack=presets.PACK, looks=[dict(slot=1, path='chosen')])):
@@ -68,6 +78,26 @@ class PresetTests(unittest.TestCase):
         self.assertEqual(result['phase'], 'COMPLETE')
         self.assertEqual([a for a, _ in calls].count('direct_install_all'), 1)
         self.assertEqual(len(result['options']['looks']), 6)
+
+    @unittest.skipUnless(AVAILABLE, 'Distribution six-pack is a separate asset')
+    def test_old_order_resume_keeps_saved_inputs_after_default_changes(self):
+        old_names = ['Classic Neg.', 'Classic Chrome', 'Nostalgic Neg.',
+                     'Astia', 'GR Positive Film', 'GR Negative Film']
+        old_rows = [dict(slot=i, name=name, path=str(presets.ROOT /
+                    'desktop-assets/presets' / presets.PACK / ('slot%d.a7look' % i)))
+                    for i, name in enumerate(old_names, 1)]
+        def dispatch(action, args, folder):
+            return dict(phase='AWAITING_RELOAD' if action == 'direct_install_all' else 'LOADED')
+        args = dict(workspace=str(self.root / 'old-setup'), firmware='2.01', power_confirmed=True,
+                    options=dict(looks=old_rows, fl23=True, sound=False, vertical=False))
+        first = allinone.run(args, dispatch=dispatch)
+        saved = first['options']['looks']
+        self.assertEqual(first['phase'], 'WAIT_RELOAD')
+        with patch.object(presets, 'resolve', side_effect=AssertionError('Keep saved inputs')):
+            resumed = allinone.run(dict(args, options=dict(preset_pack=presets.PACK)), dispatch=dispatch)
+        self.assertEqual(resumed['phase'], 'COMPLETE')
+        self.assertEqual(resumed['options']['looks'], saved)
+        self.assertEqual([r['name'] for r in saved], old_names)
 
     @unittest.skipUnless(AVAILABLE, 'Distribution six-pack is a separate asset')
     def test_mislabeled_asset_is_rejected(self):

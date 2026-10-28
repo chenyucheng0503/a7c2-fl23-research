@@ -8,15 +8,19 @@ from pathlib import Path
 from .paths import ROOT
 
 PACK = 'default-six-v1'
-NAMES = ('Classic Neg.', 'Classic Chrome', 'Nostalgic Neg.', 'Astia',
-         'GR Positive Film', 'GR Negative Film')
-SUMMARY = '1 NC · 2 CC · 3 NN · 4 Astia · 5 GR 正片 · 6 GR 负片'
+# 发行包文件编号固定；调整相机槽位时只改映射，不重命名或重做外观资源。
+ASSET_NAMES = ('Classic Neg.', 'Classic Chrome', 'Nostalgic Neg.', 'Astia',
+               'GR Positive Film', 'GR Negative Film')
+SLOT_SOURCES = (4, 5, 6, 3, 2, 1)
+NAMES = tuple(ASSET_NAMES[source - 1] for source in SLOT_SOURCES)
+SUMMARY = '1 Astia · 2 GR 正片 · 3 GR 负片 · 4 NN · 5 CC · 6 NC'
 
 
 def catalog():
     """Default file choices without disk access or validation during UI startup."""
-    return [dict(slot=slot, path=str(ROOT / 'desktop-assets/presets' / PACK / ('slot%d.a7look' % slot)), name=name)
-            for slot, name in enumerate(NAMES, 1)]
+    return [dict(slot=slot, path=str(ROOT / 'desktop-assets/presets' / PACK / ('slot%d.a7look' % source)),
+                 name=ASSET_NAMES[source - 1])
+            for slot, source in enumerate(SLOT_SOURCES, 1)]
 
 
 def resolve(options):

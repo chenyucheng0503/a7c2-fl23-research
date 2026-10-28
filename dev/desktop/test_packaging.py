@@ -38,6 +38,24 @@ assets=module('prepare_assets')
 build=module('build')
 
 
+def test_preset_builder_keeps_release_numbering_with_reordered_camera_slots(tmp_path):
+    from desktopapp import presets
+    builder=module('prepare_presets')
+    folder=presets.ROOT/'desktop-assets/presets'/presets.PACK
+    sources=[folder/('slot%d.a7look'%i) for i in range(1,7)]
+    if not all(p.is_file() for p in sources):
+        pytest.skip('Distribution six-pack is a separate asset')
+    with patch.object(builder,'ROOT',tmp_path):
+        output=builder.prepare(sources)
+    for source in sources:
+        assert (output/source.name).read_bytes()==source.read_bytes()
+    with patch.object(presets,'ROOT',tmp_path):
+        rows=presets.resolve(dict(preset_pack=presets.PACK))['looks']
+    assert [r['name'] for r in rows]==[
+        'Astia','GR Positive Film','GR Negative Film',
+        'Nostalgic Neg.','Classic Chrome','Classic Neg.']
+
+
 def test_pack_export_import_preserves_six_files_and_notices(tmp_path):
     before=tmp_path/'before';folder=before/'desktop-assets/presets/default-six-v1';folder.mkdir(parents=True)
     for name in assets.PRESET_NAMES:(folder/name).write_bytes(name.encode())

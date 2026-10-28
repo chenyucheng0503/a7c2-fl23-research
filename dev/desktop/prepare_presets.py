@@ -11,7 +11,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/looks')]
-from desktopapp.presets import PACK, NAMES
+from desktopapp.presets import PACK, ASSET_NAMES
 from looktool import lookfile
 
 
@@ -25,7 +25,7 @@ def prepare(paths):
     if len(paths) != 6:
         raise ValueError('Provide exactly six compiled looks in NC/CC/NN/Astia/GR+/GR- order')
     sources = []
-    for path, name in zip(map(Path, paths), NAMES):
+    for path, name in zip(map(Path, paths), ASSET_NAMES):
         document = lookfile.read(path)
         lookfile.writer_document(document)
         if document['name'] != name or not document.get('native_photo'):

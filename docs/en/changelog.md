@@ -2,6 +2,13 @@
 
 [Home](../../README.md) · [简体中文](../zh-CN/changelog.md)
 
+## Custom slot order (Linux adaptation branch) — 2026-10-28
+
+- New jobs default to 1 Astia, 2 GR Positive Film, 3 GR Negative Film, 4 NN, 5 CC, 6 NC. Update the UI summary and both READMEs.
+- Keep release asset numbering and bytes intact and map them to target camera slots. The asset builder continues validating the original file order to prevent mislabeled looks.
+- Existing transactions retain their saved files and slot selections when resumed. An installed body needs a separate slot-change job. This change only prepares code; no camera was connected or written, and the new order has not been physically verified.
+- Offline checks: 52 passed, covering actual look assets, packaged mapping, batch slot operations, saved-job resumption and the Linux preparation entry; 20 original-firmware planning tests skipped without private fixtures. Normalize test temporary paths for macOS `/var` and `/private/var` comparisons.
+
 ## Linux adaptation branch (based on 3.0.3) — 2026-10-27–28
 
 - Add native Linux USB capture, physical-port binding, host serialization and storage-driver return after a normal exit. Camera patches, body binding and unknown-write handling remain unchanged.
